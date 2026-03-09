@@ -1,0 +1,267 @@
+# 🏗️ TaskFlow Architecture Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         USER BROWSER                                  │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  Angular SPA (http://localhost:4200 or GitHub Pages)           │  │
+│  │  ┌──────────────┬──────────────┬────────────┬─────────────┐   │  │
+│  │  │ Login        │ Register     │ Task List  │ Task Create │   │  │
+│  │  │ Component    │ Component    │ Component  │ Form        │   │  │
+│  │  └──────────────┴──────────────┴────────────┴─────────────┘   │  │
+│  │         │                │               │            │         │  │
+│  │         └────────────────┴───────────────┴────────────┘         │  │
+│  │                           │                                      │  │
+│  │                  ┌────────▼──────────┐                          │  │
+│  │                  │  Auth Service     │                          │  │
+│  │                  │  Task Service     │                          │  │
+│  │                  └────────┬──────────┘                          │  │
+│  │                           │                                      │  │
+│  │                  ┌────────▼──────────┐                          │  │
+│  │                  │ HTTP Interceptor  │  (Adds Bearer Token)     │  │
+│  │                  └────────┬──────────┘                          │  │
+│  └─────────────────────────│─────────────────────────────────────┘  │
+└─────────────────────────────┼────────────────────────────────────────┘
+                              │
+                              │ HTTP REST API (JSON)
+                              │
+┌─────────────────────────────▼────────────────────────────────────────┐
+│              FastAPI Backend (Render or localhost:8000)              │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                         app.main                                │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │  CORS Middleware → allow_origins from .env               │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  │                                                                 │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │  /api/v1/auth Routes (auth.py)                           │  │  │
+│  │  │   POST /register   → UserService.create_user             │  │  │
+│  │  │   POST /login      → UserService.authenticate_user       │  │  │
+│  │  │   GET  /me         → get_current_user (Depends)          │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  │                                                                 │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │  /api/v1/tasks Routes (tasks.py)                         │  │  │
+│  │  │   GET    /tasks     → TaskService.list_tasks (filters)   │  │  │
+│  │  │   POST   /tasks     → TaskService.create_task            │  │  │
+│  │  │   GET    /tasks/:id → TaskService.get_task               │  │  │
+│  │  │   PATCH  /tasks/:id → TaskService.update_task (partial)  │  │  │
+│  │  │   DELETE /tasks/:id → TaskService.delete_task            │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  │                                                                 │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │  Dependencies (deps.py)                                   │  │  │
+│  │  │   get_current_user → validates JWT token                 │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  │                                                                 │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │  Core (config.py, security.py)                           │  │  │
+│  │  │   - Load settings from .env                              │  │  │
+│  │  │   - Password hashing (bcrypt)                            │  │  │
+│  │  │   - JWT token creation (python-jose)                     │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────┬───────────────────────────────────┘  │
+└────────────────────────────────┼──────────────────────────────────────┘
+                                 │
+                           Motor (Async Driver)
+                                 │
+┌────────────────────────────────▼──────────────────────────────────────┐
+│                   MongoDB Atlas (M0 Free Cluster)                     │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  Database: taskflow                                            │  │
+│  │  ┌──────────────────────┬───────────────────────────────────┐  │  │
+│  │  │  users collection    │  tasks collection                 │  │  │
+│  │  │  ┌────────────────┐  │  ┌────────────────────────────┐  │  │  │
+│  │  │  │ _id            │  │  │ _id                        │  │  │  │
+│  │  │  │ email (unique) │  │  │ user_id (FK to users._id)  │  │  │  │
+│  │  │  │ hashed_password│  │  │ title                      │  │  │  │
+│  │  │  │ full_name      │  │  │ description                │  │  │  │
+│  │  │  │ created_at     │  │  │ status (todo, in_progress) │  │  │  │
+│  │  │  └────────────────┘  │  │ priority (low, med, high)  │  │  │  │
+│  │  │                      │  │ category                   │  │  │  │
+│  │  │  Index: email        │  │ due_date                   │  │  │  │
+│  │  └──────────────────────┘  │ created_at, updated_at     │  │  │  │
+│  │                             └────────────────────────────┘  │  │  │
+│  │                             Index: user_id                  │  │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
+
+
+┌───────────────────────────────────────────────────────────────────────┐
+│                         AUTHENTICATION FLOW                           │
+├───────────────────────────────────────────────────────────────────────┤
+│  1. User submits register form (email, password)                      │
+│  2. Angular sends POST /api/v1/auth/register                          │
+│  3. Backend hashes password with bcrypt                               │
+│  4. User document inserted into MongoDB `users` collection            │
+│  5. User redirected to login page                                     │
+│  6. User submits login form                                           │
+│  7. Backend validates password, creates JWT token (exp: 60min)        │
+│  8. Frontend stores token in localStorage                             │
+│  9. HTTP Interceptor adds "Authorization: Bearer <token>" to requests │
+│  10. Protected routes check token via auth guard                      │
+└───────────────────────────────────────────────────────────────────────┘
+
+
+┌───────────────────────────────────────────────────────────────────────┐
+│                         TASK MANAGEMENT FLOW                          │
+├───────────────────────────────────────────────────────────────────────┤
+│  1. User navigates to /tasks (protected by authGuard)                 │
+│  2. TaskService calls GET /api/v1/tasks (with Bearer token)           │
+│  3. Backend validates token → extracts user_id from JWT               │
+│  4. Query MongoDB: find({user_id: <id>}) → filters applied            │
+│  5. Return task list as JSON                                          │
+│  6. Angular renders tasks in UI                                       │
+│  7. User clicks "Create Task" → POST /api/v1/tasks                    │
+│  8. Backend inserts task with user_id, returns created task           │
+│  9. UI refreshes task list                                            │
+│  10. User clicks "Next Status" → PATCH /api/v1/tasks/:id              │
+│  11. Backend updates task.status, returns updated task                │
+│  12. UI re-renders task with new status                               │
+└───────────────────────────────────────────────────────────────────────┘
+
+
+┌───────────────────────────────────────────────────────────────────────┐
+│                         DEPLOYMENT ARCHITECTURE                       │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  Frontend (GitHub Pages)          Backend (Render)                    │
+│  ┌──────────────────────┐         ┌────────────────────────┐         │
+│  │ Angular Static Build │         │ Uvicorn on Port 10000  │         │
+│  │ Served from gh-pages │◄────────┤ Auto-deploy from GitHub│         │
+│  │ branch               │ HTTPS   │ Environment vars in    │         │
+│  │                      │         │ Render dashboard       │         │
+│  └──────────────────────┘         └────────┬───────────────┘         │
+│          │                                  │                         │
+│          │                                  │                         │
+│          │                          ┌───────▼──────────┐             │
+│          │                          │ MongoDB Atlas    │             │
+│          │                          │ M0 Free Cluster  │             │
+│          │                          │ Connection String│             │
+│          │                          │ in Render Env Var│             │
+│          │                          └──────────────────┘             │
+│          │                                                            │
+│  https://<user>.github.io/taskflow/                                  │
+│          │                                                            │
+│          └──────────► https://<app>.onrender.com/api/v1              │
+│                                                                        │
+│  CORS: Backend whitelist includes GitHub Pages origin                │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔑 Key Architecture Decisions
+
+1. **Async Everywhere:** Motor (async MongoDB) + FastAPI async endpoints = high concurrency
+2. **Standalone Angular:** No NgModules, tree-shakeable components for smaller bundle size
+3. **JWT in LocalStorage:** Simple for SPA, upgrade to httpOnly cookies for production if needed
+4. **Service Layer:** Business logic isolated in `services/` for testability
+5. **Pydantic Schemas:** Auto-validation + auto-generated OpenAPI docs
+6. **ObjectId Handling:** Helper function parses string IDs from frontend correctly
+7. **CORS Whitelist:** Only allow known origins to prevent unauthorized access
+8. **Environment Config:** All secrets/URLs in `.env` or `environment.ts` for easy deployment
+9. **Route Guards:** Angular protects `/tasks` route from unauthenticated access
+10. **HTTP Interceptor:** Centralized token injection, no need to add headers manually
+
+---
+
+## 📊 Data Flow Example: Creating a Task
+
+```
+┌─────────────┐
+│   Browser   │
+└──────┬──────┘
+       │ User fills "New Task" form
+       │ Clicks "Add Task"
+       ▼
+┌──────────────────┐
+│ tasks.component  │  newTask = { title: "Learn FastAPI", priority: "high" }
+└──────┬───────────┘
+       │ taskService.createTask(newTask)
+       ▼
+┌──────────────────┐
+│  task.service    │  POST /api/v1/tasks  { body: newTask }
+└──────┬───────────┘
+       │ HTTP Interceptor adds: Authorization: Bearer <token>
+       ▼
+┌──────────────────┐
+│  auth.interceptor│  Injects token from localStorage
+└──────┬───────────┘
+       │ HTTP request sent over network
+       ▼
+┌─────────────────────────────────────────┐
+│  FastAPI Backend (tasks.py)             │
+│  @router.post("/tasks")                 │
+│  async def post_task(                   │
+│      payload: TaskCreate,               │
+│      current_user = Depends(get_current_user) │
+│  )                                      │
+└──────┬──────────────────────────────────┘
+       │ Dependency: get_current_user validates JWT
+       ▼
+┌─────────────────────────────────────────┐
+│  deps.py: get_current_user              │
+│  - Decode JWT token                     │
+│  - Extract email from "sub" claim       │
+│  - Query MongoDB users collection       │
+│  - Return user document                 │
+└──────┬──────────────────────────────────┘
+       │ user = { _id: ObjectId(...), email: "user@example.com" }
+       ▼
+┌─────────────────────────────────────────┐
+│  tasks.py calls TaskService             │
+│  task = await create_task(user_id, payload) │
+└──────┬──────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│  services/tasks.py: create_task         │
+│  - Build task document with user_id     │
+│  - Insert into MongoDB tasks collection │
+│  - Return inserted document             │
+└──────┬──────────────────────────────────┘
+       │ task = { _id: ObjectId(...), title: "Learn FastAPI", ... }
+       ▼
+┌─────────────────────────────────────────┐
+│  MongoDB Atlas                          │
+│  db.tasks.insertOne({                   │
+│    user_id: ObjectId(...),              │
+│    title: "Learn FastAPI",              │
+│    status: "todo",                      │
+│    priority: "high",                    │
+│    created_at: ISODate(),               │
+│    updated_at: ISODate()                │
+│  })                                     │
+└──────┬──────────────────────────────────┘
+       │ { insertedId: ObjectId(...) }
+       ▼
+┌─────────────────────────────────────────┐
+│  FastAPI serializes response            │
+│  return TaskRead(                       │
+│    id=str(task["_id"]),                 │
+│    title=task["title"],                 │
+│    status=TaskStatus.TODO,              │
+│    ...                                  │
+│  )                                      │
+└──────┬──────────────────────────────────┘
+       │ JSON response with 201 Created
+       ▼
+┌──────────────────┐
+│  task.service    │  Observable<Task> emits task object
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ tasks.component  │  success: () => { this.loadTasks() }
+└──────┬───────────┘
+       │ Refresh task list from API
+       ▼
+┌─────────────┐
+│   Browser   │  UI updates, new task appears in list
+└─────────────┘
+```
+
+---
+
+*For complete documentation, see [README.md](../README.md), [DEVELOPMENT.md](../DEVELOPMENT.md), and [DEPLOYMENT.md](../DEPLOYMENT.md).*

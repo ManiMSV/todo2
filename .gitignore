@@ -1,0 +1,39 @@
+# Root gitignore for TaskFlow monorepo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Node
+node_modules/
+package-lock.json
+
+# Environment Variables
+.env
+.env.local
+
+# Build Output
+dist/
+.angular/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# MongoDB local data
+data/
+
+sec.txt
