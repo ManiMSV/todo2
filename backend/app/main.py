@@ -9,9 +9,19 @@ from app.services.users import ensure_indexes
 
 app = FastAPI(title=settings.app_name)
 
+# if no origins were configured (e.g. mis‑set environment variable)
+# fall back to a permissive wildcard so that the API still responds with
+# an Access-Control-Allow-Origin header.  a more restrictive policy is
+# still recommended for production deployments.
+allow_origins = settings.cors_origins or ["*"]
+if not settings.cors_origins:
+    # log a warning so the issue is visible in the server logs
+    import logging
+    logging.getLogger(__name__).warning("CORS_ORIGINS not set, falling back to '*'")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

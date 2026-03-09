@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    # origins allowed to make cross‑origin requests to the API.  This
+    # value can be set via the CORS_ORIGINS environment variable as a
+    # comma‑separated list (pydantic will split it automatically).  It is
+    # important that the GitHub Pages origin is present when the frontend is
+    # hosted at https://manimsv.github.io; otherwise the browser will block
+    # the request with the CORS errors you saw.
     cors_origins: list[str] = [
         "http://localhost:4200",
         "http://127.0.0.1:4200",
