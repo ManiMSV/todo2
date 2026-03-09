@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "http://localhost:4200",
         "http://127.0.0.1:4200",
+        "https://manimsv.github.io",
     ]
 
     model_config = SettingsConfigDict(
